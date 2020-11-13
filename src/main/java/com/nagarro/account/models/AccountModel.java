@@ -5,19 +5,16 @@ import java.util.List;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.OneToMany;
-import javax.persistence.SecondaryTable;
 import javax.persistence.Table;
-import javax.persistence.PrimaryKeyJoinColumn;
 
 @Entity
 @Table(name = "account")
-//@SecondaryTable(name = "statement")
-//,pkJoinColumns = @PrimaryKeyJoinColumn(name="ID",referencedColumnName="account_id"))
 public class AccountModel {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
@@ -30,7 +27,7 @@ public class AccountModel {
 	@Column(name = "account_type")
 	String accountType;
 	
-	@OneToMany(cascade = CascadeType.ALL)
+	@OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
 	@JoinColumn(name = "account_id")
 	List<StatementModel> statementList;
 	

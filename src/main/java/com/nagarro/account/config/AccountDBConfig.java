@@ -17,9 +17,15 @@ import com.nagarro.account.models.AccountModel;
 import com.nagarro.account.models.StatementModel;
 import com.nagarro.account.utils.HashingUtil;
 
-public class DatabaseConfig {
-
+public class AccountDBConfig {
 	private static SessionFactory factory; 
+	/*
+	 * Establish DB connection 
+	 * settings in hibernate.cfg.xml file
+	 * AccountModel represents primary table (account)
+	 * StatementModel represents secondary table (statement)
+	 * */
+
 	public static AccountModel getConnectionWithAccess(Long accId,LocalDate dateFrom,LocalDate dateTo,BigDecimal amountFrom,BigDecimal amountTo) {
 		AccountModel accountModel = null;
 		try {
@@ -28,19 +34,24 @@ public class DatabaseConfig {
 					addAnnotatedClass(StatementModel.class).
 					buildSessionFactory();
 
-			DatabaseConfig dbConfig = new DatabaseConfig();
+			AccountDBConfig accountDBConfig = new AccountDBConfig();
 
-			accountModel = dbConfig.listAccounts();
+			accountModel = accountDBConfig.listAccounts();
 
 			accountModel = applyFilters(accId,dateFrom,dateTo,amountFrom,amountTo,accountModel);
 
 		} catch (Throwable e) { 
-			System.err.println("Failed to establish a sessionFactory object : " + e);
+			System.err.println("Failed to connect to access DB : " + e);
 			throw new ExceptionInInitializerError(e); 
 		}
 		return accountModel;
 	}
-	
+
+	/*
+	 * Fire query and fetch complete account data
+	 * */
+
+	@SuppressWarnings("rawtypes")
 	public AccountModel listAccounts(){
 		Session session = factory.openSession();
 		Transaction transac = null;
@@ -48,18 +59,13 @@ public class DatabaseConfig {
 
 		try {
 			transac = session.beginTransaction();
-			String hql = "from AccountModel where ID = :acc"; // where StatementModel.statementId = 1";
+			String hql = "from AccountModel where ID = :acc";
 			Query query = session.createQuery(hql);
 			query.setParameter("acc", "1");
 			List accounts = query.list(); 
 			for (Iterator iterator = accounts.iterator(); iterator.hasNext();){
 				accountModel = (AccountModel) iterator.next(); 
-				System.out.print("Acc num : " + accountModel.getAccountNumber()); 
-				System.out.print("Acc type : " + accountModel.getAccountType()); 
-				System.out.println("Acc id : " + accountModel.getId());
-				System.out.println("Statement : " + accountModel.getStatementList().toString());
 				accountModel.setAccountNumber(HashingUtil.encryptString(accountModel.getAccountNumber()));
-				System.out.println("hashed acc num : "+accountModel.getAccountNumber());
 			}
 			transac.commit();
 		} catch (Exception e) {
@@ -71,7 +77,13 @@ public class DatabaseConfig {
 
 		return accountModel;
 	}
-	
+
+	/*
+	 * Applies filters based upon user search
+	 * filter on date and amount
+	 * return filtered data only
+	 * */
+
 	public static AccountModel applyFilters(Long accId,LocalDate dateFrom,LocalDate dateTo,BigDecimal amountFrom,BigDecimal amountTo,AccountModel accountModel) {
 
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -83,14 +95,18 @@ public class DatabaseConfig {
 		for(StatementModel stateM : accountModel.getStatementList()) {
 			flagPass=false;
 
-			if(dateFrom.compareTo(LocalDate.parse(stateM.getDate().replace(".", "/"), formatter))<0) {
-				// cleared from check
-				if(dateTo.compareTo(LocalDate.parse(stateM.getDate().replace(".", "/"), formatter))>=0) {
-					//	cleared to check
-					flagPass=true;
+			if(dateFrom!=null) {
+				if(dateFrom.compareTo(LocalDate.parse(stateM.getDate().replace(".", "/"), formatter))<0) {
+					// cleared from check bigger than dateFrom
+					if(dateTo.compareTo(LocalDate.parse(stateM.getDate().replace(".", "/"), formatter))>=0) {
+						//	cleared to check smaller than dateTo
+						flagPass=true;
+					}
 				}
+			}else {
+				// no date filter specified
+				flagPass=true;
 			}
-
 			if(flagPass && !amountFrom.equals(new BigDecimal("0"))) {
 				if(amountFrom.compareTo(new BigDecimal(stateM.getAmount()))<0){
 					if(amountTo.compareTo(new BigDecimal(stateM.getAmount()))>=0){
@@ -112,7 +128,7 @@ public class DatabaseConfig {
 				}
 			}
 		}
-		
+
 		if(staList==null || staList.size()<1) {
 			filteredModel=null;
 		}else {

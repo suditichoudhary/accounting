@@ -1,7 +1,5 @@
 package com.nagarro.account.models;
 
-import java.math.BigDecimal;
-
 public class AccountRequestDataModel {
 	
 	private String accountId;

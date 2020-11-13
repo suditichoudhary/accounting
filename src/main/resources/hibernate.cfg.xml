@@ -10,9 +10,7 @@
 		<property name="hibernate.connection.driver_class">net.ucanaccess.jdbc.UcanaccessDriver</property>
 		<property name="hibernate.connection.url">jdbc:ucanaccess:///Users/suditi/Desktop/accountsdb.accdb;</property>
 		<property name="show_sql">true</property>
-	
-	<!--  	<mapping class="com.nagarro.account.models.StatementModel" /> -->
-
+	    
 	</session-factory>
 </hibernate-configuration>
 

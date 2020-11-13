@@ -13,8 +13,7 @@ form {
 </style>
 <div style="border: 1px solid #ccc; padding: 5px; margin-bottom: 20px;">
 
-	<a href="/account">Home</a> | <a
-		onclick="document.forms['logoutForm'].submit()">Logout</a>
+	<a href="/account">Home</a> |  <a href="/logout">Logout</a>
 
 	<hr />
 
@@ -26,5 +25,4 @@ form {
 		<input type="submit"
 			value="Submit" />
 	</form>
-	<form id="logoutForm" method="POST" action="/logout"></form>
 </div>

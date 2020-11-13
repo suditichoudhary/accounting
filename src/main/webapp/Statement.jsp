@@ -20,9 +20,7 @@
       </style>
    </head>
    <div style="border: 1px solid #ccc; padding: 5px; margin-bottom: 20px;">
-      <a href="/account">Home</a> | <a
-         onclick="document.forms['logoutForm'].submit()">Logout</a>
-      <form id="logoutForm" method="POST" action="/logout"></form>
+      <a href="/account">Home</a>  | <a href="/logout">Logout</a>
       <hr />
    
    <h3 style="text-align: center">Find Your Account Statement</h3>

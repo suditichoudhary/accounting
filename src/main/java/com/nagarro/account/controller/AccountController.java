@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,7 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.servlet.ModelAndView;
 
-import com.nagarro.account.config.DatabaseConfig;
+import com.nagarro.account.config.AccountDBConfig;
 import com.nagarro.account.models.AccountModel;
 import com.nagarro.account.models.AccountRequestDataModel;
 import com.nagarro.account.models.AccountValidationReturnModel;
@@ -23,7 +24,19 @@ import com.nagarro.account.utils.DateFormatUtil;
 
 @Controller
 public class AccountController {
+	@Value("${application.user.username:defaultValue}")
+	private String userName;
+	@Value("${application.jsp.error:defaultValue}")
+	private String error;
+	@Value("${application.jsp.statement:defaultValue}")
+	private String statement;
 
+	/*
+	 * Mainly responsible in fetching account statement and displaying it.
+	 * Checkes if user can provide optional parameters
+	 * Sets last 3 months date as default filter
+	 * returns error or statement jsp depending upon result
+	 * */
 	@GetMapping("/getStatement")
 	public ModelAndView captureAndvalidateAccountAdmin(HttpServletRequest httpRequest,HttpServletResponse httpResponse) {
 		ModelAndView obj = new ModelAndView();
@@ -34,9 +47,9 @@ public class AccountController {
 			if (!(authentication instanceof AnonymousAuthenticationToken)) {
 				currentUserName = authentication.getName();  
 
-				if(currentUserName.equalsIgnoreCase("testuser") && (httpRequest.getParameter("datefrom")!=null || httpRequest.getParameter("dateto")!=null 
+				if(currentUserName.equalsIgnoreCase(userName) && (httpRequest.getParameter("datefrom")!=null || httpRequest.getParameter("dateto")!=null 
 						|| httpRequest.getParameter("amountfrom")!=null || httpRequest.getParameter("amountto")!=null) ) {
-					obj.setViewName("Error.jsp");
+					obj.setViewName(error);
 					obj.addObject("Error", "Unauthorized Access!!!");
 					return obj;
 				}
@@ -51,36 +64,35 @@ public class AccountController {
 
 			AccountValidationReturnModel accountValidationReturnModel = validateAccount(accountRequestDataModel);
 			if(accountValidationReturnModel.getError()) {
-				obj.setViewName("Error.jsp");
+				obj.setViewName(error);
 				obj.addObject("Error", accountValidationReturnModel.getMessage());
 			}else {
-				obj.setViewName("Statement.jsp");
+				obj.setViewName(statement);
 				obj.addObject("accountStatement",accountValidationReturnModel.getAccountModel());
 			}
 		}catch(Exception e) {
-			obj.setViewName("Error.jsp");
+			obj.setViewName(error);
 			obj.addObject("Error",e);
 		}
 		return obj;
 	}
 
-
+	/*
+	 * Validate all the params and their values and return specific error
+	 * if all the checks pass then fetch data from db and resturn the Accountodel
+	 * */
 	public AccountValidationReturnModel validateAccount(AccountRequestDataModel accountRequestDataModel) {
 		AccountValidationReturnModel accountValidationReturnModel = new AccountValidationReturnModel();
 		accountValidationReturnModel.setError(false);
-
-
 		Long accountId = new Long("0");
 
 		// check user session also
 		BigDecimal amountFrom = new BigDecimal("0");
 		BigDecimal amountTo = new BigDecimal("0");
 
-		// default case fetch last 3 months data
-		LocalDate	dateFrom = LocalDate.now().plusMonths(-3);
-		LocalDate dateTo = LocalDate.now();
+		LocalDate dateFrom=null;
+		LocalDate dateTo=null;
 
-		System.out.print("inside validator");
 		if(StringUtils.isEmpty(accountRequestDataModel.getAccountId())) {
 			// account id is mandatory
 			accountValidationReturnModel.setError(true);
@@ -115,7 +127,6 @@ public class AccountController {
 						accountValidationReturnModel.setError(true);
 						accountValidationReturnModel.setMessage("Date from cannot be bigger than Date To");
 					}
-
 				}else {
 					accountValidationReturnModel.setError(true);
 					accountValidationReturnModel.setMessage("Date format should be (dd.mm.yyyy)");
@@ -136,14 +147,12 @@ public class AccountController {
 					accountValidationReturnModel.setError(true);
 					accountValidationReturnModel.setMessage("Amount from cannot be bigger than Amount To");
 				}
-
 			}catch(Exception e) {
 				// if amount cannot be parsed in a bigdecimal
 				accountValidationReturnModel.setError(true);
 				accountValidationReturnModel.setMessage("Amount should be a Number");
 			}
 		}
-
 
 		try {
 			accountId = new Long(accountRequestDataModel.getAccountId());
@@ -157,17 +166,16 @@ public class AccountController {
 			accountValidationReturnModel.setMessage("Account Id should be a Number");
 		}
 
+		if(amountFrom.equals(new BigDecimal("0")) && dateFrom==null) {
+			// default case when no parameter then fetch last 3 months data
+			dateFrom = LocalDate.now().plusMonths(-3);
+			dateTo = LocalDate.now();
+		}
 
 		if(!accountValidationReturnModel.getError()) {
 			// fetch data from db and set object
 
-			System.out.println("acc id : "+accountId);
-			System.out.println("dateFrom : "+dateFrom);
-			System.out.println("dateTo : "+dateTo);
-			System.out.println("amountFrom : "+amountFrom);
-			System.out.println("amountTo : "+amountTo);
-
-			AccountModel accountModel = DatabaseConfig.getConnectionWithAccess(accountId,dateFrom,dateTo,amountFrom,amountTo);
+			AccountModel accountModel = AccountDBConfig.getConnectionWithAccess(accountId,dateFrom,dateTo,amountFrom,amountTo);
 			//			NormalDBConfig.getConnectionWithAccess();
 
 			if(accountModel!=null) {
@@ -177,11 +185,8 @@ public class AccountController {
 				accountValidationReturnModel.setMessage("No Data/Match!!!");
 			}
 		}
-		System.out.println(accountValidationReturnModel.toString());
+		// System.out.println(accountValidationReturnModel.toString());
 		return accountValidationReturnModel;
-
 	}
-
-
 
 }
